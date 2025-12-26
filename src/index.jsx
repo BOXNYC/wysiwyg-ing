@@ -286,6 +286,7 @@ export default function WysiwygEditor({ defaultValue, demo } = {}) {
         initialUrl={editor.linkData.url}
         initialText={editor.linkData.text}
         initialTitle={editor.linkData.title}
+        isImageLink={!!editor.linkData.imageData}
         colors={colors}
       />
 

@@ -33,7 +33,7 @@ export function useEditor({ defaultValue, demo } = {}) {
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [linkData, setLinkData] = useState({ url: '', text: '', title: '' });
+  const [linkData, setLinkData] = useState({ url: '', text: '', title: '', imageData: null });
   const [imageData, setImageData] = useState({ url: '', alt: '', existingRange: null });
   const [lastSaved, setLastSaved] = useState(null);
   const [activeFormats, setActiveFormats] = useState({
@@ -361,8 +361,14 @@ export function useEditor({ defaultValue, demo } = {}) {
     const ta = textareaRef.current;
 
     if (lastActiveEditorRef.current === 'preview' && (mode === 'render' || mode === 'split')) {
-      if (previewRef.current) {
+      if (previewRef.current && currentRangeRef.current) {
         previewRef.current.focus();
+        // Restore the saved selection before inserting
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(currentRangeRef.current);
+        }
         document.execCommand('insertHTML', false, htmlOverride || txt);
         syncToMarkdown();
       }
@@ -381,23 +387,163 @@ export function useEditor({ defaultValue, demo } = {}) {
 
   const handleOpenLinkModal = useCallback(() => {
     let selectedText = '';
-    if (lastActiveEditorRef.current === 'preview' && currentRangeRef.current) {
-      selectedText = currentRangeRef.current.toString();
+    let imageInfo = null;
+
+    if (lastActiveEditorRef.current === 'preview' && previewRef.current) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        // Check if an image is selected - need to find the actual DOM element, not a clone
+        let img = null;
+        const container = range.commonAncestorContainer;
+
+        if (container.nodeName === 'IMG') {
+          img = container;
+        } else if (range.collapsed) {
+          // Cursor is collapsed - check adjacent nodes
+          const node = range.startContainer;
+          const offset = range.startOffset;
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const child = node.childNodes[offset];
+            const prevChild = node.childNodes[offset - 1];
+            if (child && child.nodeName === 'IMG') img = child;
+            else if (prevChild && prevChild.nodeName === 'IMG') img = prevChild;
+          }
+        } else {
+          // Selection range - check if it contains an image
+          // We need to find the actual element in the DOM, not from cloneContents
+          if (container.nodeType === Node.ELEMENT_NODE) {
+            // Check children within the selection range
+            const imgs = container.querySelectorAll('img');
+            for (const candidate of imgs) {
+              if (sel.containsNode(candidate, true)) {
+                img = candidate;
+                break;
+              }
+            }
+          }
+          // Also check if the selection is within an element that contains an img
+          if (!img) {
+            let parent = container;
+            while (parent && parent !== previewRef.current) {
+              if (parent.querySelector) {
+                const found = parent.querySelector('img');
+                if (found && sel.containsNode(found, true)) {
+                  img = found;
+                  break;
+                }
+              }
+              parent = parent.parentNode;
+            }
+          }
+        }
+
+        if (img) {
+          // Check if image is already wrapped in a link
+          const parentLink = img.closest('a');
+          const imgSrc = img.getAttribute('src') || '';
+          imageInfo = {
+            src: imgSrc,
+            alt: img.getAttribute('alt') || '',
+            type: 'preview',
+            imgSrc: imgSrc, // Use src to re-find the image later
+            existingUrl: parentLink ? parentLink.getAttribute('href') : ''
+          };
+        } else if (currentRangeRef.current) {
+          selectedText = currentRangeRef.current.toString();
+        }
+      }
     } else if (textareaRef.current) {
       const s = savedSelectionRef.current.start;
       const e = savedSelectionRef.current.end;
-      selectedText = content.substring(s, e);
+
+      // Check if cursor is within an image markdown syntax
+      const searchStart = Math.max(0, s - 200);
+      const searchEnd = Math.min(content.length, e + 200);
+      const searchText = content.substring(searchStart, searchEnd);
+      const cursorInSearch = s - searchStart;
+
+      const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      let match;
+      while ((match = imgRegex.exec(searchText)) !== null) {
+        if (cursorInSearch >= match.index && cursorInSearch <= match.index + match[0].length) {
+          imageInfo = {
+            type: 'textarea',
+            src: match[2],
+            alt: match[1],
+            start: searchStart + match.index,
+            end: searchStart + match.index + match[0].length,
+            existingUrl: ''
+          };
+          // Check if already wrapped in a link: [![alt](src)](url)
+          const beforeImg = content.substring(Math.max(0, imageInfo.start - 1), imageInfo.start);
+          if (beforeImg === '[') {
+            const afterImg = content.substring(imageInfo.end);
+            const linkMatch = afterImg.match(/^\]\(([^)]+)\)/);
+            if (linkMatch) {
+              imageInfo.existingUrl = linkMatch[1];
+              imageInfo.start = imageInfo.start - 1;
+              imageInfo.end = imageInfo.end + linkMatch[0].length;
+            }
+          }
+          break;
+        }
+      }
+
+      if (!imageInfo) {
+        selectedText = content.substring(s, e);
+      }
     }
-    setLinkData({ url: '', text: selectedText, title: '' });
+
+    setLinkData({
+      url: imageInfo?.existingUrl || '',
+      text: selectedText,
+      title: '',
+      imageData: imageInfo
+    });
     setLinkModalOpen(true);
   }, [content]);
 
   const handleInsertLink = useCallback((url, text, title) => {
-    const linkText = text || url;
-    const md = title ? `[${linkText}](${url} "${title}")` : `[${linkText}](${url})`;
-    const html = title ? `<a href="${url}" title="${title}">${linkText}</a>` : `<a href="${url}">${linkText}</a>`;
-    insertText(md, html);
-  }, [insertText]);
+    const imgData = linkData.imageData;
+
+    if (imgData) {
+      // Wrapping an image in a link
+      const imgMd = `![${imgData.alt}](${imgData.src})`;
+      const linkedImgMd = `[${imgMd}](${url})`;
+      const linkedImgHtml = `<a href="${url}"><img src="${imgData.src}" alt="${imgData.alt}" style="max-width:100%"/></a>`;
+
+      if (imgData.type === 'preview' && previewRef.current) {
+        // Preview mode: find the image by src and wrap or update its link
+        const img = previewRef.current.querySelector(`img[src="${imgData.imgSrc}"]`);
+        if (img) {
+          const parentLink = img.closest('a');
+          if (parentLink) {
+            parentLink.setAttribute('href', url);
+          } else {
+            const link = document.createElement('a');
+            link.href = url;
+            img.parentNode.insertBefore(link, img);
+            link.appendChild(img);
+          }
+          skipSyncRef.current = true;
+          setContentRaw(htmlToMarkdown(previewRef.current));
+        }
+      } else if (imgData.type === 'textarea' && imgData.start !== undefined) {
+        // Textarea mode: replace the image (or linked image) with linked version
+        const newContent = content.substring(0, imgData.start) + linkedImgMd + content.substring(imgData.end);
+        const newCursorPos = imgData.start + linkedImgMd.length;
+        pendingSelectionRef.current = { start: newCursorPos, end: newCursorPos };
+        setContentRaw(newContent);
+      }
+    } else {
+      // Regular text link
+      const linkText = text || url;
+      const md = title ? `[${linkText}](${url} "${title}")` : `[${linkText}](${url})`;
+      const html = title ? `<a href="${url}" title="${title}">${linkText}</a>` : `<a href="${url}">${linkText}</a>`;
+      insertText(md, html);
+    }
+  }, [insertText, linkData.imageData, content]);
 
   const handleOpenImageModal = useCallback(() => {
     let imgUrl = '';

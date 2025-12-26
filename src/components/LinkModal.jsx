@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CloseIcon } from '../icons';
 
-export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, initialTitle, colors }) {
+export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, initialTitle, isImageLink, colors }) {
   const [url, setUrl] = useState(initialUrl || '');
   const [text, setText] = useState(initialText || '');
   const [title, setTitle] = useState(initialTitle || '');
@@ -65,7 +65,7 @@ export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, 
           alignItems: 'center',
           marginBottom: 20
         }}>
-          <h3 style={{ margin: 0, color: colors.text }}>Insert Link</h3>
+          <h3 style={{ margin: 0, color: colors.text }}>{isImageLink ? 'Link Image' : 'Insert Link'}</h3>
           <button
             onClick={onClose}
             style={{
@@ -101,41 +101,56 @@ export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, 
             />
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{
-              display: 'block',
-              marginBottom: 6,
-              color: colors.textSecondary,
-              fontSize: 13
+          {isImageLink ? (
+            <div style={{
+              marginBottom: 20,
+              padding: 12,
+              background: colors.codeBg || colors.border,
+              borderRadius: 6,
+              fontSize: 13,
+              color: colors.textSecondary
             }}>
-              Text (optional)
-            </label>
-            <input
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Link text"
-              style={inputStyle}
-            />
-          </div>
+              The selected image will be wrapped in a link.
+            </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: 6,
+                  color: colors.textSecondary,
+                  fontSize: 13
+                }}>
+                  Text (optional)
+                </label>
+                <input
+                  type="text"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Link text"
+                  style={inputStyle}
+                />
+              </div>
 
-          <div style={{ marginBottom: 20 }}>
-            <label style={{
-              display: 'block',
-              marginBottom: 6,
-              color: colors.textSecondary,
-              fontSize: 13
-            }}>
-              Title (optional)
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Link title (tooltip)"
-              style={inputStyle}
-            />
-          </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: 6,
+                  color: colors.textSecondary,
+                  fontSize: 13
+                }}>
+                  Title (optional)
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Link title (tooltip)"
+                  style={inputStyle}
+                />
+              </div>
+            </>
+          )}
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <button
