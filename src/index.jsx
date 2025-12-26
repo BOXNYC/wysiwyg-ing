@@ -1,23 +1,39 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useEditor } from './hooks/useEditor';
 import { getColors } from './utils/themes';
 import { getPreviewStyles } from './utils/styles';
 import {
   Toolbar,
   LinkModal,
+  ImageModal,
   ExportModal,
   CodePanel,
   PreviewPanel,
   SplitDivider,
   ModeSelector
 } from './components';
-import { SunIcon, MoonIcon, SpellcheckIcon, SwapIcon } from './icons';
+import { SunIcon, MoonIcon, SwapIcon, CogIcon } from './icons';
 
 export default function WysiwygEditor({ defaultValue, demo } = {}) {
   const normalizedDefault = defaultValue?.replace(/^[ \t]+/gm, '').trim();
   const editor = useEditor({ defaultValue: normalizedDefault, demo });
   const colors = getColors(editor.theme);
   const isVertical = editor.splitDirection === 'vertical';
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef(null);
+
+  // Close settings popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target)) {
+        setSettingsOpen(false);
+      }
+    };
+    if (settingsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [settingsOpen]);
 
   return (
     <div style={{
@@ -55,6 +71,10 @@ export default function WysiwygEditor({ defaultValue, demo } = {}) {
           onH2={() => editor.toggleBlock('## ', 'h2')}
           onH3={() => editor.toggleBlock('### ', 'h3')}
           onHR={() => editor.insertText('\n\n---\n\n', '<hr/>')}
+          onCenter={() => editor.formatText('<center>', '</center>')}
+          onSpellCheck={() => editor.setSpellCheck(s => !s)}
+          spellCheck={editor.spellCheck}
+          onImage={editor.handleOpenImageModal}
           onExport={() => editor.setExportModalOpen(true)}
         />
 
@@ -66,65 +86,86 @@ export default function WysiwygEditor({ defaultValue, demo } = {}) {
           />
 
           {editor.mode === 'split' && (
-            <>
+            <div style={{ position: 'relative' }} ref={settingsRef}>
               <button
-                onClick={() => editor.setSplitDirection(d => d === 'horizontal' ? 'vertical' : 'horizontal')}
-                title={isVertical ? 'Horizontal split' : 'Vertical split'}
+                onClick={() => setSettingsOpen(s => !s)}
+                title="Panel settings"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   width: 34,
                   height: 34,
-                  border: `1px solid ${colors.border}`,
+                  border: `1px solid ${settingsOpen ? colors.accent : colors.border}`,
                   borderRadius: 6,
-                  background: colors.bg,
-                  color: colors.textSecondary,
-                  cursor: 'pointer',
-                  transform: isVertical ? 'rotate(90deg)' : 'none'
-                }}
-              >
-                <SwapIcon />
-              </button>
-              <button
-                onClick={() => editor.setPanelsSwapped(s => !s)}
-                title="Swap panels"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 34,
-                  height: 34,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 6,
-                  background: colors.bg,
-                  color: colors.textSecondary,
+                  background: settingsOpen ? colors.accentLight : colors.bg,
+                  color: settingsOpen ? colors.accent : colors.textSecondary,
                   cursor: 'pointer'
                 }}
               >
-                ⇄
+                <CogIcon />
               </button>
-            </>
+              {settingsOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: 4,
+                  padding: 8,
+                  background: colors.bg,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 8,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  zIndex: 100,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  minWidth: 160
+                }}>
+                  <button
+                    onClick={() => editor.setSplitDirection(d => d === 'horizontal' ? 'vertical' : 'horizontal')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 12px',
+                      border: 'none',
+                      borderRadius: 6,
+                      background: 'transparent',
+                      color: colors.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ transform: isVertical ? 'rotate(90deg)' : 'none', display: 'flex' }}>
+                      <SwapIcon />
+                    </span>
+                    {isVertical ? 'Horizontal split' : 'Vertical split'}
+                  </button>
+                  <button
+                    onClick={() => editor.setPanelsSwapped(s => !s)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 12px',
+                      border: 'none',
+                      borderRadius: 6,
+                      background: 'transparent',
+                      color: colors.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span>⇄</span>
+                    Swap panels
+                  </button>
+                </div>
+              )}
+            </div>
           )}
-
-          <button
-            onClick={() => editor.setSpellCheck(s => !s)}
-            title={editor.spellCheck ? 'Disable spellcheck' : 'Enable spellcheck'}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 34,
-              height: 34,
-              border: `1px solid ${editor.spellCheck ? colors.accent : colors.border}`,
-              borderRadius: 6,
-              background: editor.spellCheck ? colors.accentLight : colors.bg,
-              color: editor.spellCheck ? colors.accent : colors.textSecondary,
-              cursor: 'pointer'
-            }}
-          >
-            <SpellcheckIcon />
-          </button>
 
           <button
             onClick={() => editor.setTheme(t => t === 'light' ? 'dark' : 'light')}
@@ -245,6 +286,16 @@ export default function WysiwygEditor({ defaultValue, demo } = {}) {
         initialUrl={editor.linkData.url}
         initialText={editor.linkData.text}
         initialTitle={editor.linkData.title}
+        colors={colors}
+      />
+
+      <ImageModal
+        isOpen={editor.imageModalOpen}
+        onClose={() => editor.setImageModalOpen(false)}
+        onInsert={editor.handleInsertImage}
+        initialUrl={editor.imageData.url}
+        initialAlt={editor.imageData.alt}
+        isEditing={!!editor.imageData.existingRange}
         colors={colors}
       />
 

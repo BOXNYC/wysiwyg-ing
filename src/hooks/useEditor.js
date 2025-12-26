@@ -31,15 +31,18 @@ export function useEditor({ defaultValue, demo } = {}) {
   const [isDragging, setIsDragging] = useState(false);
   const [spellCheck, setSpellCheck] = useState(false);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [linkData, setLinkData] = useState({ url: '', text: '', title: '' });
+  const [imageData, setImageData] = useState({ url: '', alt: '', existingRange: null });
   const [lastSaved, setLastSaved] = useState(null);
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
     underline: false,
     strikethrough: false,
-    code: false
+    code: false,
+    image: false
   });
 
   const textareaRef = useRef(null);
@@ -137,12 +140,46 @@ export function useEditor({ defaultValue, demo } = {}) {
 
   const detectFormats = useCallback(() => {
     if (lastActiveEditorRef.current === 'preview' && previewRef.current) {
+      // Check if an image is selected in preview
+      let isImage = false;
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        // Check if the selection directly contains an img or if cursor is immediately adjacent to one
+        const container = range.commonAncestorContainer;
+
+        // Case 1: The container itself is an img
+        if (container.nodeName === 'IMG') {
+          isImage = true;
+        }
+        // Case 2: Selection contains an img element
+        else if (container.nodeType === Node.ELEMENT_NODE) {
+          const fragment = range.cloneContents();
+          if (fragment.querySelector('img')) {
+            isImage = true;
+          }
+        }
+        // Case 3: Cursor is right before or after an img (collapsed selection)
+        if (!isImage && range.collapsed) {
+          const node = range.startContainer;
+          const offset = range.startOffset;
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const child = node.childNodes[offset];
+            const prevChild = node.childNodes[offset - 1];
+            if ((child && child.nodeName === 'IMG') || (prevChild && prevChild.nodeName === 'IMG')) {
+              isImage = true;
+            }
+          }
+        }
+      }
+
       setActiveFormats({
         bold: document.queryCommandState('bold'),
         italic: document.queryCommandState('italic'),
         underline: document.queryCommandState('underline'),
         strikethrough: document.queryCommandState('strikeThrough'),
-        code: false
+        code: false,
+        image: isImage
       });
     } else if (textareaRef.current) {
       const s = savedSelectionRef.current.start;
@@ -153,13 +190,29 @@ export function useEditor({ defaultValue, demo } = {}) {
       const before1 = content.substring(Math.max(0, s - 1), s);
       const after1 = content.substring(e, e + 1);
 
+      // Check if cursor is within an image markdown syntax
+      let isImage = false;
+      const searchStart = Math.max(0, s - 200);
+      const searchEnd = Math.min(content.length, e + 200);
+      const searchText = content.substring(searchStart, searchEnd);
+      const cursorInSearch = s - searchStart;
+      const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      let match;
+      while ((match = imgRegex.exec(searchText)) !== null) {
+        if (cursorInSearch >= match.index && cursorInSearch <= match.index + match[0].length) {
+          isImage = true;
+          break;
+        }
+      }
+
       setActiveFormats({
         bold: (before2 === '**' && after2 === '**') || (txt.startsWith('**') && txt.endsWith('**')),
         italic: (before1 === '*' && after1 === '*' && before2 !== '**' && after2 !== '**') ||
           (txt.startsWith('*') && txt.endsWith('*') && !txt.startsWith('**')),
         underline: (content.substring(Math.max(0, s - 3), s) === '<u>' && content.substring(e, e + 4) === '</u>'),
         strikethrough: (before2 === '~~' && after2 === '~~') || (txt.startsWith('~~') && txt.endsWith('~~')),
-        code: (before1 === '`' && after1 === '`') || (txt.startsWith('`') && txt.endsWith('`'))
+        code: (before1 === '`' && after1 === '`') || (txt.startsWith('`') && txt.endsWith('`')),
+        image: isImage
       });
     }
   }, [content]);
@@ -169,7 +222,7 @@ export function useEditor({ defaultValue, demo } = {}) {
 
     // Preview mode
     if (lastActiveEditorRef.current === 'preview' && (mode === 'render' || mode === 'split')) {
-      if (cmd && currentRangeRef.current && previewRef.current) {
+      if (currentRangeRef.current && previewRef.current) {
         previewRef.current.focus();
         const sel = window.getSelection();
         if (sel) {
@@ -177,7 +230,13 @@ export function useEditor({ defaultValue, demo } = {}) {
           sel.addRange(currentRangeRef.current);
         }
         skipInputSyncRef.current = true;
-        document.execCommand(cmd, false, null);
+        if (cmd) {
+          document.execCommand(cmd, false, null);
+        } else {
+          // Wrap selection with HTML tags
+          const selectedText = currentRangeRef.current.toString();
+          document.execCommand('insertHTML', false, `${pre}${selectedText}${suf}`);
+        }
         const newSel = window.getSelection();
         if (newSel && newSel.rangeCount > 0) {
           currentRangeRef.current = newSel.getRangeAt(0).cloneRange();
@@ -309,6 +368,102 @@ export function useEditor({ defaultValue, demo } = {}) {
     insertText(md, html);
   }, [insertText]);
 
+  const handleOpenImageModal = useCallback(() => {
+    let imgUrl = '';
+    let imgAlt = '';
+    let existingRange = null;
+
+    // Check if an image is selected in preview mode
+    if (lastActiveEditorRef.current === 'preview' && previewRef.current) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        // Check if selection contains or is within an image
+        let img = null;
+        if (range.startContainer.nodeType === Node.ELEMENT_NODE) {
+          img = range.startContainer.querySelector('img');
+        }
+        if (!img && range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE) {
+          img = range.commonAncestorContainer.querySelector('img');
+        }
+        if (!img) {
+          // Check if the selection is right before/after an img
+          const parent = range.startContainer.parentElement;
+          if (parent) {
+            img = parent.querySelector('img');
+          }
+        }
+        if (img) {
+          imgUrl = img.getAttribute('src') || '';
+          imgAlt = img.getAttribute('alt') || '';
+          // Store a reference to select the image for replacement
+          existingRange = { type: 'preview', element: img };
+        }
+      }
+    } else if (textareaRef.current) {
+      // Check if cursor is within an image markdown syntax in textarea
+      const s = savedSelectionRef.current.start;
+      const e = savedSelectionRef.current.end;
+
+      // Look for image pattern around cursor: ![alt](url)
+      const searchStart = Math.max(0, s - 200);
+      const searchEnd = Math.min(content.length, e + 200);
+      const searchText = content.substring(searchStart, searchEnd);
+      const cursorInSearch = s - searchStart;
+
+      // Find all image patterns in the search area
+      const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      let match;
+      while ((match = imgRegex.exec(searchText)) !== null) {
+        const matchStart = match.index;
+        const matchEnd = match.index + match[0].length;
+        // Check if cursor is within this match
+        if (cursorInSearch >= matchStart && cursorInSearch <= matchEnd) {
+          imgAlt = match[1];
+          imgUrl = match[2];
+          // Store the absolute position of the match for replacement
+          existingRange = {
+            type: 'textarea',
+            start: searchStart + matchStart,
+            end: searchStart + matchEnd
+          };
+          break;
+        }
+      }
+    }
+
+    setImageData({ url: imgUrl, alt: imgAlt, existingRange });
+    setImageModalOpen(true);
+  }, [content]);
+
+  const handleInsertImage = useCallback((url, alt) => {
+    const md = `![${alt || ''}](${url})`;
+    const html = `<img src="${url}" alt="${alt || ''}" style="max-width:100%"/>`;
+    const existing = imageData.existingRange;
+
+    if (existing) {
+      if (existing.type === 'textarea') {
+        // Replace the existing image in textarea
+        const newContent = content.substring(0, existing.start) + md + content.substring(existing.end);
+        const newCursorPos = existing.start + md.length;
+        pendingSelectionRef.current = { start: newCursorPos, end: newCursorPos };
+        setContentRaw(newContent);
+      } else if (existing.type === 'preview' && existing.element && previewRef.current) {
+        // Replace the existing image in preview
+        const newImg = document.createElement('img');
+        newImg.src = url;
+        newImg.alt = alt || '';
+        newImg.style.maxWidth = '100%';
+        existing.element.replaceWith(newImg);
+        skipSyncRef.current = true;
+        setContentRaw(htmlToMarkdown(previewRef.current));
+      }
+    } else {
+      // Insert new image
+      insertText(md, html);
+    }
+  }, [insertText, imageData.existingRange, content]);
+
   const handleTextareaChange = useCallback((e) => {
     const ta = e.target;
     setContentRaw(ta.value);
@@ -423,8 +578,10 @@ export function useEditor({ defaultValue, demo } = {}) {
     isDragging,
     spellCheck,
     linkModalOpen,
+    imageModalOpen,
     exportModalOpen,
     linkData,
+    imageData,
     lastSaved,
     activeFormats,
 
@@ -435,6 +592,7 @@ export function useEditor({ defaultValue, demo } = {}) {
     setPanelsSwapped,
     setSpellCheck,
     setLinkModalOpen,
+    setImageModalOpen,
     setExportModalOpen,
 
     // Refs
@@ -448,6 +606,8 @@ export function useEditor({ defaultValue, demo } = {}) {
     insertText,
     handleOpenLinkModal,
     handleInsertLink,
+    handleOpenImageModal,
+    handleInsertImage,
     handleTextareaChange,
     handleTextareaSelect,
     handleTextareaFocus,

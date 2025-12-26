@@ -3,7 +3,7 @@ import { ToolbarButton, ToolbarDivider } from './ToolbarButton';
 import {
   BoldIcon, ItalicIcon, UnderlineIcon, StrikethroughIcon,
   LinkIcon, CodeIcon, QuoteIcon, ListBulletIcon, ListNumberIcon,
-  H1Icon, H2Icon, H3Icon, HRIcon, DownloadIcon
+  H1Icon, H2Icon, H3Icon, HRIcon, DownloadIcon, AlignCenterIcon, SpellcheckIcon, ImageIcon
 } from '../icons';
 
 export function Toolbar({
@@ -22,6 +22,10 @@ export function Toolbar({
   onH2,
   onH3,
   onHR,
+  onCenter,
+  onSpellCheck,
+  spellCheck,
+  onImage,
   onExport
 }) {
   return (
@@ -38,6 +42,7 @@ export function Toolbar({
       <ToolbarDivider colors={colors} />
       
       <ToolbarButton icon={<LinkIcon />} label="Link" onClick={onLink} colors={colors} />
+      <ToolbarButton icon={<ImageIcon />} label="Image" onClick={onImage} active={activeFormats.image} colors={colors} />
       <ToolbarButton icon={<CodeIcon />} label="Code" onClick={onCode} active={activeFormats.code} colors={colors} />
       <ToolbarButton icon={<QuoteIcon />} label="Quote" onClick={onQuote} colors={colors} />
       <ToolbarDivider colors={colors} />
@@ -45,8 +50,10 @@ export function Toolbar({
       <ToolbarButton icon={<ListBulletIcon />} label="Bullets" onClick={onBulletList} colors={colors} />
       <ToolbarButton icon={<ListNumberIcon />} label="Numbers" onClick={onNumberList} colors={colors} />
       <ToolbarButton icon={<HRIcon />} label="HR" onClick={onHR} colors={colors} />
+      <ToolbarButton icon={<AlignCenterIcon />} label="Center" onClick={onCenter} colors={colors} />
+      <ToolbarButton icon={<SpellcheckIcon />} label="Spellcheck" onClick={onSpellCheck} active={spellCheck} colors={colors} />
       <ToolbarDivider colors={colors} />
-      
+
       <ToolbarButton icon={<DownloadIcon />} label="Export" onClick={onExport} colors={colors} />
     </div>
   );

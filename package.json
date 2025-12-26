@@ -47,14 +47,14 @@
     "dark-mode",
     "split-view"
   ],
-  "author": "",
+  "author": "Joseph Weitzel",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/BOXNYC/wysiwyg-ing.git"
   },
   "bugs": {
-    "url": ""
+    "url": "https://github.com/BOXNYC/wysiwyg-ing/issues"
   },
-  "homepage": ""
+  "homepage": "https://github.com/BOXNYC/wysiwyg-ing#readme"
 }

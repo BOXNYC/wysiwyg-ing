@@ -19,9 +19,10 @@ export function parseMarkdown(md) {
       title ? `<a href="${url}" title="${title}">${text}</a>` : `<a href="${url}">${text}</a>`
     )
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" style="max-width:100%"/>')
-    .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => 
+    .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
       `<pre data-lang="${lang}"><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`
-    );
+    )
+    .replace(/<center>([\s\S]*?)<\/center>/g, '<center>$1</center>');
 
   // Wrap consecutive li items
   html = html.replace(/((?:<li class="ul-item">.*<\/li>\n?)+)/g, '<ul>$1</ul>');
@@ -74,6 +75,7 @@ export function htmlToMarkdown(element) {
       case 'hr': return '\n---\n\n';
       case 'br': return '\n';
       case 'div': return ch ? `${ch}\n` : '\n';
+      case 'center': return `<center>${ch}</center>`;
       default: return ch;
     }
   };
