@@ -33,7 +33,7 @@ export function useEditor({ defaultValue, demo } = {}) {
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [linkData, setLinkData] = useState({ url: '', text: '', title: '', imageData: null });
+  const [linkData, setLinkData] = useState({ url: '', text: '', title: '', target: '', imageData: null });
   const [imageData, setImageData] = useState({ url: '', alt: '', existingRange: null });
   const [lastSaved, setLastSaved] = useState(null);
   const [activeFormats, setActiveFormats] = useState({
@@ -42,8 +42,13 @@ export function useEditor({ defaultValue, demo } = {}) {
     underline: false,
     strikethrough: false,
     code: false,
-    image: false
+    image: false,
+    link: false
   });
+  const [hoveredLink, setHoveredLink] = useState(null);
+  const [linkTooltipPosition, setLinkTooltipPosition] = useState(null);
+  const isOverTooltipRef = useRef(false);
+  const hideTooltipTimeoutRef = useRef(null);
 
   const textareaRef = useRef(null);
   const previewRef = useRef(null);
@@ -140,13 +145,23 @@ export function useEditor({ defaultValue, demo } = {}) {
 
   const detectFormats = useCallback(() => {
     if (lastActiveEditorRef.current === 'preview' && previewRef.current) {
-      // Check if an image is selected in preview
+      // Check if an image or link is selected in preview
       let isImage = false;
+      let isLink = false;
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
-        // Check if the selection directly contains an img or if cursor is immediately adjacent to one
         const container = range.commonAncestorContainer;
+
+        // Check for link - look for ancestor <a> element
+        let node = container;
+        while (node && node !== previewRef.current) {
+          if (node.nodeName === 'A') {
+            isLink = true;
+            break;
+          }
+          node = node.parentNode;
+        }
 
         // Case 1: The container itself is an img
         if (container.nodeName === 'IMG') {
@@ -173,13 +188,27 @@ export function useEditor({ defaultValue, demo } = {}) {
         }
       }
 
+      // Check for actual <u> tag, not just link styling
+      let hasUnderlineTag = false;
+      if (sel && sel.rangeCount > 0) {
+        let node = sel.getRangeAt(0).commonAncestorContainer;
+        while (node && node !== previewRef.current) {
+          if (node.nodeName === 'U') {
+            hasUnderlineTag = true;
+            break;
+          }
+          node = node.parentNode;
+        }
+      }
+
       setActiveFormats({
         bold: document.queryCommandState('bold'),
         italic: document.queryCommandState('italic'),
-        underline: document.queryCommandState('underline'),
+        underline: hasUnderlineTag,
         strikethrough: document.queryCommandState('strikeThrough'),
         code: false,
-        image: isImage
+        image: isImage,
+        link: isLink
       });
     } else if (textareaRef.current) {
       const s = savedSelectionRef.current.start;
@@ -190,17 +219,29 @@ export function useEditor({ defaultValue, demo } = {}) {
       const before1 = content.substring(Math.max(0, s - 1), s);
       const after1 = content.substring(e, e + 1);
 
-      // Check if cursor is within an image markdown syntax
+      // Check if cursor is within an image or link markdown syntax
       let isImage = false;
+      let isLink = false;
       const searchStart = Math.max(0, s - 200);
       const searchEnd = Math.min(content.length, e + 200);
       const searchText = content.substring(searchStart, searchEnd);
       const cursorInSearch = s - searchStart;
+
+      // Check for image: ![alt](url)
       const imgRegex = /!\[([^\]]*)\]\(((?:[^)(]+|\([^)]*\))+)\)/g;
       let match;
       while ((match = imgRegex.exec(searchText)) !== null) {
         if (cursorInSearch >= match.index && cursorInSearch <= match.index + match[0].length) {
           isImage = true;
+          break;
+        }
+      }
+
+      // Check for link: [text](url) - but not image links
+      const linkRegex = /(?<!!)\[([^\]]+)\]\(((?:[^)(]+|\([^)]*\))+)\)/g;
+      while ((match = linkRegex.exec(searchText)) !== null) {
+        if (cursorInSearch >= match.index && cursorInSearch <= match.index + match[0].length) {
+          isLink = true;
           break;
         }
       }
@@ -212,7 +253,8 @@ export function useEditor({ defaultValue, demo } = {}) {
         underline: (content.substring(Math.max(0, s - 3), s) === '<u>' && content.substring(e, e + 4) === '</u>'),
         strikethrough: (before2 === '~~' && after2 === '~~') || (txt.startsWith('~~') && txt.endsWith('~~')),
         code: (before1 === '`' && after1 === '`') || (txt.startsWith('`') && txt.endsWith('`')),
-        image: isImage
+        image: isImage,
+        link: isLink
       });
     }
   }, [content]);
@@ -388,6 +430,7 @@ export function useEditor({ defaultValue, demo } = {}) {
   const handleOpenLinkModal = useCallback(() => {
     let selectedText = '';
     let imageInfo = null;
+    let existingLinkInfo = null;
 
     if (lastActiveEditorRef.current === 'preview' && previewRef.current) {
       const sel = window.getSelection();
@@ -447,10 +490,29 @@ export function useEditor({ defaultValue, demo } = {}) {
             alt: img.getAttribute('alt') || '',
             type: 'preview',
             imgSrc: imgSrc, // Use src to re-find the image later
-            existingUrl: parentLink ? parentLink.getAttribute('href') : ''
+            existingUrl: parentLink ? parentLink.getAttribute('href') : '',
+            existingTarget: parentLink ? parentLink.getAttribute('target') || '' : ''
           };
-        } else if (currentRangeRef.current) {
-          selectedText = currentRangeRef.current.toString();
+        } else {
+          // Check if cursor is inside a text link
+          let node = container;
+          while (node && node !== previewRef.current) {
+            if (node.nodeName === 'A') {
+              existingLinkInfo = {
+                type: 'preview',
+                url: node.getAttribute('href') || '',
+                text: node.textContent || '',
+                title: node.getAttribute('title') || '',
+                target: node.getAttribute('target') || '',
+                element: node
+              };
+              break;
+            }
+            node = node.parentNode;
+          }
+          if (!existingLinkInfo && currentRangeRef.current) {
+            selectedText = currentRangeRef.current.toString();
+          }
         }
       }
     } else if (textareaRef.current) {
@@ -490,28 +552,84 @@ export function useEditor({ defaultValue, demo } = {}) {
         }
       }
 
+      // Check if cursor is within a markdown link: [text](url) or [text](url "title")
       if (!imageInfo) {
-        selectedText = content.substring(s, e);
+        const linkRegex = /(?<!!)\[([^\]]+)\]\(((?:[^)(]+|\([^)]*\))+)(?:\s+"([^"]+)")?\)/g;
+        while ((match = linkRegex.exec(searchText)) !== null) {
+          if (cursorInSearch >= match.index && cursorInSearch <= match.index + match[0].length) {
+            existingLinkInfo = {
+              type: 'textarea',
+              text: match[1],
+              url: match[2],
+              title: match[3] || '',
+              target: '',
+              start: searchStart + match.index,
+              end: searchStart + match.index + match[0].length
+            };
+            break;
+          }
+        }
+
+        // Check if cursor is within an HTML link: <a href="..." ...>text</a>
+        if (!existingLinkInfo) {
+          const htmlLinkRegex = /<a\s+([^>]*)>([^<]*)<\/a>/g;
+          while ((match = htmlLinkRegex.exec(searchText)) !== null) {
+            if (cursorInSearch >= match.index && cursorInSearch <= match.index + match[0].length) {
+              const attrs = match[1];
+              const hrefMatch = attrs.match(/href="([^"]*)"/);
+              const titleMatch = attrs.match(/title="([^"]*)"/);
+              const targetMatch = attrs.match(/target="([^"]*)"/);
+              existingLinkInfo = {
+                type: 'textarea',
+                text: match[2],
+                url: hrefMatch ? hrefMatch[1] : '',
+                title: titleMatch ? titleMatch[1] : '',
+                target: targetMatch ? targetMatch[1] : '',
+                start: searchStart + match.index,
+                end: searchStart + match.index + match[0].length
+              };
+              break;
+            }
+          }
+        }
+
+        if (!existingLinkInfo) {
+          selectedText = content.substring(s, e);
+        }
       }
     }
 
     setLinkData({
-      url: imageInfo?.existingUrl || '',
-      text: selectedText,
-      title: '',
-      imageData: imageInfo
+      url: imageInfo?.existingUrl || existingLinkInfo?.url || '',
+      text: existingLinkInfo?.text || selectedText,
+      title: existingLinkInfo?.title || '',
+      target: imageInfo?.existingTarget || existingLinkInfo?.target || '',
+      imageData: imageInfo,
+      existingLink: existingLinkInfo
     });
     setLinkModalOpen(true);
   }, [content]);
 
-  const handleInsertLink = useCallback((url, text, title) => {
+  const handleInsertLink = useCallback((url, text, title, target) => {
     const imgData = linkData.imageData;
+    const existingLink = linkData.existingLink;
+
+    // Build HTML attributes
+    const buildAttrs = (extraAttrs = '') => {
+      let attrs = `href="${url}"`;
+      if (title) attrs += ` title="${title}"`;
+      if (target) attrs += ` target="${target}"`;
+      if (extraAttrs) attrs += ` ${extraAttrs}`;
+      return attrs;
+    };
 
     if (imgData) {
       // Wrapping an image in a link
       const imgMd = `![${imgData.alt}](${imgData.src})`;
-      const linkedImgMd = `[${imgMd}](${url})`;
-      const linkedImgHtml = `<a href="${url}"><img src="${imgData.src}" alt="${imgData.alt}" style="max-width:100%"/></a>`;
+      // If target is set, use HTML syntax since markdown doesn't support target
+      const linkedImgMd = target
+        ? `<a ${buildAttrs()}>${imgMd}</a>`
+        : `[${imgMd}](${url})`;
 
       if (imgData.type === 'preview' && previewRef.current) {
         // Preview mode: find the image by src and wrap or update its link
@@ -520,9 +638,15 @@ export function useEditor({ defaultValue, demo } = {}) {
           const parentLink = img.closest('a');
           if (parentLink) {
             parentLink.setAttribute('href', url);
+            if (target) parentLink.setAttribute('target', target);
+            else parentLink.removeAttribute('target');
+            if (title) parentLink.setAttribute('title', title);
+            else parentLink.removeAttribute('title');
           } else {
             const link = document.createElement('a');
             link.href = url;
+            if (target) link.target = target;
+            if (title) link.title = title;
             img.parentNode.insertBefore(link, img);
             link.appendChild(img);
           }
@@ -536,14 +660,42 @@ export function useEditor({ defaultValue, demo } = {}) {
         pendingSelectionRef.current = { start: newCursorPos, end: newCursorPos };
         setContentRaw(newContent);
       }
-    } else {
-      // Regular text link
+    } else if (existingLink) {
+      // Updating an existing link
       const linkText = text || url;
-      const md = title ? `[${linkText}](${url} "${title}")` : `[${linkText}](${url})`;
-      const html = title ? `<a href="${url}" title="${title}">${linkText}</a>` : `<a href="${url}">${linkText}</a>`;
+      const md = target
+        ? `<a ${buildAttrs()}>${linkText}</a>`
+        : (title ? `[${linkText}](${url} "${title}")` : `[${linkText}](${url})`);
+      const html = `<a ${buildAttrs()}>${linkText}</a>`;
+
+      if (existingLink.type === 'preview' && existingLink.element && previewRef.current) {
+        // Update the existing link element in preview
+        existingLink.element.setAttribute('href', url);
+        existingLink.element.textContent = linkText;
+        if (target) existingLink.element.setAttribute('target', target);
+        else existingLink.element.removeAttribute('target');
+        if (title) existingLink.element.setAttribute('title', title);
+        else existingLink.element.removeAttribute('title');
+        skipSyncRef.current = true;
+        setContentRaw(htmlToMarkdown(previewRef.current));
+      } else if (existingLink.type === 'textarea' && existingLink.start !== undefined) {
+        // Replace the existing link in textarea
+        const newContent = content.substring(0, existingLink.start) + md + content.substring(existingLink.end);
+        const newCursorPos = existingLink.start + md.length;
+        pendingSelectionRef.current = { start: newCursorPos, end: newCursorPos };
+        setContentRaw(newContent);
+      }
+    } else {
+      // Regular text link (new)
+      const linkText = text || url;
+      // If target is set, use HTML syntax since markdown doesn't support target
+      const md = target
+        ? `<a ${buildAttrs()}>${linkText}</a>`
+        : (title ? `[${linkText}](${url} "${title}")` : `[${linkText}](${url})`);
+      const html = `<a ${buildAttrs()}>${linkText}</a>`;
       insertText(md, html);
     }
-  }, [insertText, linkData.imageData, content]);
+  }, [insertText, linkData.imageData, linkData.existingLink, content]);
 
   const handleOpenImageModal = useCallback(() => {
     let imgUrl = '';
@@ -686,6 +838,62 @@ export function useEditor({ defaultValue, demo } = {}) {
     detectFormats();
   }, [detectFormats]);
 
+  const handlePreviewMouseOver = useCallback((e) => {
+    const link = e.target.closest('a');
+    if (link && previewRef.current?.contains(link)) {
+      // Clear any pending hide timeout
+      if (hideTooltipTimeoutRef.current) {
+        clearTimeout(hideTooltipTimeoutRef.current);
+        hideTooltipTimeoutRef.current = null;
+      }
+      const rect = link.getBoundingClientRect();
+      setHoveredLink(link);
+      setLinkTooltipPosition({
+        x: rect.left,
+        y: rect.bottom + 4
+      });
+    }
+  }, []);
+
+  const handlePreviewMouseOut = useCallback((e) => {
+    const link = e.target.closest('a');
+    const relatedTarget = e.relatedTarget;
+    // Only start hide timer if we're leaving the link and not going to another part of it
+    if (link && (!relatedTarget || !link.contains(relatedTarget))) {
+      // Delay hiding to allow mouse to reach the tooltip
+      hideTooltipTimeoutRef.current = setTimeout(() => {
+        if (!isOverTooltipRef.current) {
+          setHoveredLink(null);
+          setLinkTooltipPosition(null);
+        }
+      }, 100);
+    }
+  }, []);
+
+  const handleTooltipMouseEnter = useCallback(() => {
+    isOverTooltipRef.current = true;
+    if (hideTooltipTimeoutRef.current) {
+      clearTimeout(hideTooltipTimeoutRef.current);
+      hideTooltipTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleTooltipMouseLeave = useCallback(() => {
+    isOverTooltipRef.current = false;
+    setHoveredLink(null);
+    setLinkTooltipPosition(null);
+  }, []);
+
+  const hideLinkTooltip = useCallback(() => {
+    isOverTooltipRef.current = false;
+    if (hideTooltipTimeoutRef.current) {
+      clearTimeout(hideTooltipTimeoutRef.current);
+      hideTooltipTimeoutRef.current = null;
+    }
+    setHoveredLink(null);
+    setLinkTooltipPosition(null);
+  }, []);
+
   // Drag handlers
   const handlePointerDown = useCallback((e) => {
     e.preventDefault();
@@ -761,6 +969,8 @@ export function useEditor({ defaultValue, demo } = {}) {
     imageData,
     lastSaved,
     activeFormats,
+    hoveredLink,
+    linkTooltipPosition,
 
     // Setters
     setMode,
@@ -792,6 +1002,11 @@ export function useEditor({ defaultValue, demo } = {}) {
     handlePreviewFocus,
     handlePreviewMouseUp,
     handlePreviewKeyUp,
+    handlePreviewMouseOver,
+    handlePreviewMouseOut,
+    handleTooltipMouseEnter,
+    handleTooltipMouseLeave,
+    hideLinkTooltip,
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,

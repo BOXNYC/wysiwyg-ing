@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CloseIcon } from '../icons';
 
-export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, initialTitle, isImageLink, colors }) {
+export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, initialTitle, initialTarget, isImageLink, isEditing, colors }) {
   const [url, setUrl] = useState(initialUrl || '');
   const [text, setText] = useState(initialText || '');
   const [title, setTitle] = useState(initialTitle || '');
+  const [target, setTarget] = useState(initialTarget || '');
   const urlInputRef = useRef(null);
 
   useEffect(() => {
@@ -12,16 +13,17 @@ export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, 
       setUrl(initialUrl || '');
       setText(initialText || '');
       setTitle(initialTitle || '');
+      setTarget(initialTarget || '');
       setTimeout(() => urlInputRef.current?.focus(), 50);
     }
-  }, [isOpen, initialUrl, initialText, initialTitle]);
+  }, [isOpen, initialUrl, initialText, initialTitle, initialTarget]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (url) {
-      onInsert(url, text, title);
+      onInsert(url, text, title, target);
       onClose();
     }
   };
@@ -65,7 +67,7 @@ export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, 
           alignItems: 'center',
           marginBottom: 20
         }}>
-          <h3 style={{ margin: 0, color: colors.text }}>{isImageLink ? 'Link Image' : 'Insert Link'}</h3>
+          <h3 style={{ margin: 0, color: colors.text }}>{isImageLink ? 'Link Image' : (isEditing ? 'Edit Link' : 'Insert Link')}</h3>
           <button
             onClick={onClose}
             style={{
@@ -103,7 +105,7 @@ export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, 
 
           {isImageLink ? (
             <div style={{
-              marginBottom: 20,
+              marginBottom: 16,
               padding: 12,
               background: colors.codeBg || colors.border,
               borderRadius: 6,
@@ -132,7 +134,7 @@ export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, 
                 />
               </div>
 
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 16 }}>
                 <label style={{
                   display: 'block',
                   marginBottom: 6,
@@ -151,6 +153,28 @@ export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, 
               </div>
             </>
           )}
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{
+              display: 'block',
+              marginBottom: 6,
+              color: colors.textSecondary,
+              fontSize: 13
+            }}>
+              Open in
+            </label>
+            <select
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              style={{
+                ...inputStyle,
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Same window</option>
+              <option value="_blank">New tab</option>
+            </select>
+          </div>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <button
@@ -181,7 +205,7 @@ export function LinkModal({ isOpen, onClose, onInsert, initialUrl, initialText, 
                 fontWeight: 500
               }}
             >
-              Insert
+              {isEditing ? 'Update' : 'Insert'}
             </button>
           </div>
         </form>

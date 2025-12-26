@@ -3,15 +3,11 @@ import { createRoot } from 'react-dom/client';
 import WysiwygEditor from '../src/index.jsx';
 import { Viewer } from '../src/components';
 
-const DEMO_CONTENT = `# Viewer Component Demo
+const DEMO_CONTENT = `# This is a test
 
-This is the **Viewer** component rendered below the editor.
+[![](https://upload.wikimedia.org/wikipedia/commons/4/4c/Chihuahua1_bvdb.jpg)](https://en.wikipedia.org/wiki/Chihuahua_(dog_breed))
 
-It displays markdown content *without* any editing UI.
-
-- Read-only display
-- Supports light/dark themes
-- Same styling as the editor preview`;
+Here is a sentence with a link to [Apple.com](https://apple.com).`;
 
 function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');

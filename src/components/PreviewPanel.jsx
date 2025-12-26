@@ -7,6 +7,8 @@ export function PreviewPanel({
   onFocus,
   onMouseUp,
   onKeyUp,
+  onMouseOver,
+  onMouseOut,
   colors,
   style
 }) {
@@ -19,6 +21,8 @@ export function PreviewPanel({
       onFocus={onFocus}
       onMouseUp={onMouseUp}
       onKeyUp={onKeyUp}
+      onMouseOver={onMouseOver}
+      onMouseOut={onMouseOut}
       suppressContentEditableWarning
       className="preview-content"
       style={{

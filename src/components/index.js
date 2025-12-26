@@ -8,3 +8,4 @@ export { PreviewPanel } from './PreviewPanel';
 export { Viewer } from './Preview';
 export { SplitDivider } from './SplitDivider';
 export { ModeSelector } from './ModeSelector';
+export { LinkTooltip } from './LinkTooltip';

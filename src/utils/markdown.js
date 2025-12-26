@@ -1,8 +1,16 @@
+// Zero-width and invisible characters that browsers insert during editing
+const ZERO_WIDTH_CHARS = /[\u200B-\u200D\u2060\uFEFF\u00AD]/g;
+// Non-breaking space that browsers insert around elements
+const NBSP = /\u00A0/g;
+
 /**
  * Parse markdown string to HTML
  */
 export function parseMarkdown(md) {
+  // Remove zero-width characters and convert nbsp to regular space
   let html = md
+    .replace(ZERO_WIDTH_CHARS, '')
+    .replace(NBSP, ' ')
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -19,6 +27,8 @@ export function parseMarkdown(md) {
     .replace(/\[([^\]]+)\]\(((?:[^)(]+|\([^)]*\))+)(?:\s+"([^"]+)")?\)/g, (_, text, url, title) =>
       title ? `<a href="${url}" title="${title}">${text}</a>` : `<a href="${url}">${text}</a>`
     )
+    // Preserve <a> tags with attributes (for target, etc.) - supports nested content like images
+    .replace(/<a\s+([^>]*)>([\s\S]*?)<\/a>/g, '<a $1>$2</a>')
     .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
       `<pre data-lang="${lang}"><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`
     )
@@ -45,7 +55,12 @@ export function parseMarkdown(md) {
  */
 export function htmlToMarkdown(element) {
   const process = (node) => {
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+    if (node.nodeType === Node.TEXT_NODE) {
+      // Clean zero-width characters and convert nbsp to regular space
+      return (node.textContent || '')
+        .replace(ZERO_WIDTH_CHARS, '')
+        .replace(NBSP, ' ');
+    }
     if (node.nodeType !== Node.ELEMENT_NODE) return '';
     
     const el = node;
@@ -63,9 +78,17 @@ export function htmlToMarkdown(element) {
       case 'del': case 's': case 'strike': return `~~${ch}~~`;
       case 'code': return el.parentElement?.tagName === 'PRE' ? ch : `\`${ch}\``;
       case 'pre': return `\`\`\`${el.getAttribute('data-lang') || ''}\n${el.textContent}\n\`\`\`\n\n`;
-      case 'a': 
+      case 'a':
         const h = el.getAttribute('href') || '';
         const ti = el.getAttribute('title');
+        const target = el.getAttribute('target');
+        // Use HTML syntax if target is set (markdown doesn't support target)
+        if (target) {
+          let attrs = `href="${h}"`;
+          if (ti) attrs += ` title="${ti}"`;
+          attrs += ` target="${target}"`;
+          return `<a ${attrs}>${ch}</a>`;
+        }
         return ti ? `[${ch}](${h} "${ti}")` : `[${ch}](${h})`;
       case 'img': return `![${el.getAttribute('alt') || ''}](${el.getAttribute('src') || ''})`;
       case 'ul': return Array.from(el.children).map(li => `- ${process(li).trim()}`).join('\n') + '\n\n';
@@ -80,5 +103,7 @@ export function htmlToMarkdown(element) {
     }
   };
   
-  return Array.from(element.childNodes).map(process).join('').replace(/\n{3,}/g, '\n\n').trim();
+  return Array.from(element.childNodes).map(process).join('')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }

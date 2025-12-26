@@ -41,7 +41,7 @@ export function Toolbar({
       <ToolbarButton icon={<StrikethroughIcon />} label="Strike" onClick={onStrikethrough} active={activeFormats.strikethrough} colors={colors} />
       <ToolbarDivider colors={colors} />
       
-      <ToolbarButton icon={<LinkIcon />} label="Link" onClick={onLink} colors={colors} />
+      <ToolbarButton icon={<LinkIcon />} label="Link" onClick={onLink} active={activeFormats.link} colors={colors} />
       <ToolbarButton icon={<ImageIcon />} label="Image" onClick={onImage} active={activeFormats.image} colors={colors} />
       <ToolbarButton icon={<CodeIcon />} label="Code" onClick={onCode} active={activeFormats.code} colors={colors} />
       <ToolbarButton icon={<QuoteIcon />} label="Quote" onClick={onQuote} colors={colors} />

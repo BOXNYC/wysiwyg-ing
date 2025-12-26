@@ -10,7 +10,8 @@ import {
   CodePanel,
   PreviewPanel,
   SplitDivider,
-  ModeSelector
+  ModeSelector,
+  LinkTooltip
 } from './components';
 import { SunIcon, MoonIcon, SwapIcon, CogIcon } from './icons';
 
@@ -238,6 +239,8 @@ export default function WysiwygEditor({ defaultValue, demo } = {}) {
               onFocus={editor.handlePreviewFocus}
               onMouseUp={editor.handlePreviewMouseUp}
               onKeyUp={editor.handlePreviewKeyUp}
+              onMouseOver={editor.handlePreviewMouseOver}
+              onMouseOut={editor.handlePreviewMouseOut}
               colors={colors}
               style={editor.mode === 'split'
                 ? (isVertical
@@ -286,7 +289,9 @@ export default function WysiwygEditor({ defaultValue, demo } = {}) {
         initialUrl={editor.linkData.url}
         initialText={editor.linkData.text}
         initialTitle={editor.linkData.title}
+        initialTarget={editor.linkData.target}
         isImageLink={!!editor.linkData.imageData}
+        isEditing={!!editor.linkData.existingLink || !!editor.linkData.imageData?.existingUrl}
         colors={colors}
       />
 
@@ -305,6 +310,18 @@ export default function WysiwygEditor({ defaultValue, demo } = {}) {
         onClose={() => editor.setExportModalOpen(false)}
         content={editor.content}
         colors={colors}
+      />
+
+      <LinkTooltip
+        link={editor.hoveredLink}
+        position={editor.linkTooltipPosition}
+        colors={colors}
+        onMouseEnter={editor.handleTooltipMouseEnter}
+        onMouseLeave={editor.handleTooltipMouseLeave}
+        onEdit={() => {
+          editor.hideLinkTooltip();
+          editor.handleOpenLinkModal();
+        }}
       />
     </div>
   );
