@@ -288,6 +288,7 @@ export function useEditor({ defaultValue, demo } = {}) {
 
   const toggleBlock = useCallback((pre, tag) => {
     const ta = textareaRef.current;
+    const isList = pre === '- ' || pre === '1. ';
 
     if (lastActiveEditorRef.current === 'preview' && (mode === 'render' || mode === 'split')) {
       if (currentRangeRef.current && previewRef.current) {
@@ -313,13 +314,43 @@ export function useEditor({ defaultValue, demo } = {}) {
     const line = content.substring(ls, ae);
     let newContent, newCursorPos;
 
-    if (line.startsWith(pre)) {
+    // Check for existing list prefixes (with possible indentation)
+    const indentMatch = line.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1] : '';
+    const lineContent = line.substring(indent.length);
+
+    const bulletMatch = lineContent.match(/^[-*] /);
+    const numberMatch = lineContent.match(/^\d+\. /);
+    const isCurrentlyBullet = !!bulletMatch;
+    const isCurrentlyNumber = !!numberMatch;
+    const isCurrentlyList = isCurrentlyBullet || isCurrentlyNumber;
+
+    if (isList && isCurrentlyList) {
+      // Already a list item
+      const currentPrefix = isCurrentlyBullet ? bulletMatch[0] : numberMatch[0];
+      const isSameType = (pre === '- ' && isCurrentlyBullet) || (pre === '1. ' && isCurrentlyNumber);
+
+      if (isSameType) {
+        // Same list type: add indentation for nesting
+        const newIndent = indent + '  ';
+        const restOfLine = lineContent.substring(currentPrefix.length);
+        newContent = content.substring(0, ls) + newIndent + pre + restOfLine + content.substring(ae);
+        newCursorPos = s + 2; // Added 2 spaces of indentation
+      } else {
+        // Different list type: switch between bullet and numbered
+        const restOfLine = lineContent.substring(currentPrefix.length);
+        newContent = content.substring(0, ls) + indent + pre + restOfLine + content.substring(ae);
+        newCursorPos = s + (pre.length - currentPrefix.length);
+      }
+    } else if (line.startsWith(pre)) {
+      // Exact match at start (no indent): remove the prefix
       newContent = content.substring(0, ls) + line.substring(pre.length) + content.substring(ae);
       newCursorPos = s - pre.length;
     } else {
-      const clean = line.replace(/^#{1,6} /, '').replace(/^[-*] /, '').replace(/^\d+\. /, '').replace(/^> /, '');
-      newContent = content.substring(0, ls) + pre + clean + content.substring(ae);
-      newCursorPos = s + pre.length - (line.length - clean.length);
+      // Not a list or different block type: clean and add prefix
+      const clean = lineContent.replace(/^#{1,6} /, '').replace(/^[-*] /, '').replace(/^\d+\. /, '').replace(/^> /, '');
+      newContent = content.substring(0, ls) + indent + pre + clean + content.substring(ae);
+      newCursorPos = s + pre.length - (lineContent.length - clean.length);
     }
 
     pendingSelectionRef.current = { start: newCursorPos, end: newCursorPos };

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import WysiwygEditor from '../src/index.jsx';
-import { Preview } from '../src/components';
+import { Viewer } from '../src/components';
 
-const DEMO_CONTENT = `# Preview Component Demo
+const DEMO_CONTENT = `# Viewer Component Demo
 
-This is the **Preview** component rendered below the editor.
+This is the **Viewer** component rendered below the editor.
 
 It displays markdown content *without* any editing UI.
 
@@ -27,7 +27,7 @@ function App() {
           alignItems: 'center',
           marginBottom: 16
         }}>
-          <h2 style={{ margin: 0, color: '#333' }}>Preview Component</h2>
+          <h2 style={{ margin: 0, color: '#333' }}>Viewer Component</h2>
           <button
             onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
             style={{
@@ -41,7 +41,7 @@ function App() {
             Toggle Theme ({theme})
           </button>
         </div>
-        <Preview
+        <Viewer
           content={DEMO_CONTENT}
           theme={theme}
           style={{

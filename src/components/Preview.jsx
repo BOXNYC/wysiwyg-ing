@@ -3,7 +3,7 @@ import { parseMarkdown } from '../utils/markdown';
 import { getColors } from '../utils/themes';
 import { getPreviewStyles } from '../utils/styles';
 
-export function Preview({ content, theme = 'light', style }) {
+export function Viewer({ content, theme = 'light', style }) {
   const colors = getColors(theme);
   const html = useMemo(() => parseMarkdown(content || ''), [content]);
 

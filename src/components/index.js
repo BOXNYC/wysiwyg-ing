@@ -5,6 +5,6 @@ export { ImageModal } from './ImageModal';
 export { ExportModal } from './ExportModal';
 export { CodePanel } from './CodePanel';
 export { PreviewPanel } from './PreviewPanel';
-export { Preview } from './Preview';
+export { Viewer } from './Preview';
 export { SplitDivider } from './SplitDivider';
 export { ModeSelector } from './ModeSelector';
