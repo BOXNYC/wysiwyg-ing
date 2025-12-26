@@ -15,10 +15,10 @@ export function parseMarkdown(md) {
     .replace(/^---$/gm, '<hr/>')
     .replace(/^\d+\. (.+)$/gm, '<li class="ol-item">$1</li>')
     .replace(/^[-*] (.+)$/gm, '<li class="ul-item">$1</li>')
-    .replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]+)")?\)/g, (_, text, url, title) => 
+    .replace(/!\[([^\]]*)\]\(((?:[^)(]+|\([^)]*\))+)\)/g, '<img alt="$1" src="$2" style="max-width:100%"/>')
+    .replace(/\[([^\]]+)\]\(((?:[^)(]+|\([^)]*\))+)(?:\s+"([^"]+)")?\)/g, (_, text, url, title) =>
       title ? `<a href="${url}" title="${title}">${text}</a>` : `<a href="${url}">${text}</a>`
     )
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" style="max-width:100%"/>')
     .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
       `<pre data-lang="${lang}"><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`
     )

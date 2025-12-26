@@ -196,7 +196,7 @@ export function useEditor({ defaultValue, demo } = {}) {
       const searchEnd = Math.min(content.length, e + 200);
       const searchText = content.substring(searchStart, searchEnd);
       const cursorInSearch = s - searchStart;
-      const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      const imgRegex = /!\[([^\]]*)\]\(((?:[^)(]+|\([^)]*\))+)\)/g;
       let match;
       while ((match = imgRegex.exec(searchText)) !== null) {
         if (cursorInSearch >= match.index && cursorInSearch <= match.index + match[0].length) {
@@ -463,7 +463,7 @@ export function useEditor({ defaultValue, demo } = {}) {
       const searchText = content.substring(searchStart, searchEnd);
       const cursorInSearch = s - searchStart;
 
-      const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      const imgRegex = /!\[([^\]]*)\]\(((?:[^)(]+|\([^)]*\))+)\)/g;
       let match;
       while ((match = imgRegex.exec(searchText)) !== null) {
         if (cursorInSearch >= match.index && cursorInSearch <= match.index + match[0].length) {
@@ -589,7 +589,7 @@ export function useEditor({ defaultValue, demo } = {}) {
       const cursorInSearch = s - searchStart;
 
       // Find all image patterns in the search area
-      const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      const imgRegex = /!\[([^\]]*)\]\(((?:[^)(]+|\([^)]*\))+)\)/g;
       let match;
       while ((match = imgRegex.exec(searchText)) !== null) {
         const matchStart = match.index;
