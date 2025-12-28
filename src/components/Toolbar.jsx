@@ -50,7 +50,7 @@ export function Toolbar({
       <ToolbarButton icon={<ListBulletIcon />} label="Bullets" onClick={onBulletList} colors={colors} />
       <ToolbarButton icon={<ListNumberIcon />} label="Numbers" onClick={onNumberList} colors={colors} />
       <ToolbarButton icon={<HRIcon />} label="HR" onClick={onHR} colors={colors} />
-      <ToolbarButton icon={<AlignCenterIcon />} label="Center" onClick={onCenter} colors={colors} />
+      <ToolbarButton icon={<AlignCenterIcon />} label="Center" onClick={onCenter} active={activeFormats.center} colors={colors} />
       <ToolbarButton icon={<SpellcheckIcon />} label="Spellcheck" onClick={onSpellCheck} active={spellCheck} colors={colors} />
       <ToolbarDivider colors={colors} />
 

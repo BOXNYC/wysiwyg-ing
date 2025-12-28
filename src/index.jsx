@@ -86,106 +86,110 @@ export default function WysiwygEditor({ defaultValue, demo } = {}) {
             colors={colors}
           />
 
-          {editor.mode === 'split' && (
-            <div style={{ position: 'relative' }} ref={settingsRef}>
-              <button
-                onClick={() => setSettingsOpen(s => !s)}
-                title="Panel settings"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 34,
-                  height: 34,
-                  border: `1px solid ${settingsOpen ? colors.accent : colors.border}`,
-                  borderRadius: 6,
-                  background: settingsOpen ? colors.accentLight : colors.bg,
-                  color: settingsOpen ? colors.accent : colors.textSecondary,
-                  cursor: 'pointer'
-                }}
-              >
-                <CogIcon />
-              </button>
-              {settingsOpen && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: 4,
-                  padding: 8,
-                  background: colors.bg,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 8,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  zIndex: 100,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 4,
-                  minWidth: 160
-                }}>
-                  <button
-                    onClick={() => editor.setSplitDirection(d => d === 'horizontal' ? 'vertical' : 'horizontal')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '8px 12px',
-                      border: 'none',
-                      borderRadius: 6,
-                      background: 'transparent',
-                      color: colors.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      textAlign: 'left'
-                    }}
-                  >
-                    <span style={{ transform: isVertical ? 'rotate(90deg)' : 'none', display: 'flex' }}>
-                      <SwapIcon />
-                    </span>
-                    {isVertical ? 'Horizontal split' : 'Vertical split'}
-                  </button>
-                  <button
-                    onClick={() => editor.setPanelsSwapped(s => !s)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '8px 12px',
-                      border: 'none',
-                      borderRadius: 6,
-                      background: 'transparent',
-                      color: colors.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      textAlign: 'left'
-                    }}
-                  >
-                    <span>⇄</span>
-                    Swap panels
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          <button
-            onClick={() => editor.setTheme(t => t === 'light' ? 'dark' : 'light')}
-            title={editor.theme === 'light' ? 'Dark mode' : 'Light mode'}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 34,
-              height: 34,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 6,
-              background: colors.bg,
-              color: colors.textSecondary,
-              cursor: 'pointer'
-            }}
-          >
-            {editor.theme === 'light' ? <MoonIcon /> : <SunIcon />}
-          </button>
+          <div style={{ position: 'relative' }} ref={settingsRef}>
+            <button
+              onClick={() => setSettingsOpen(s => !s)}
+              title="Settings"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 34,
+                height: 34,
+                border: `1px solid ${settingsOpen ? colors.accent : colors.border}`,
+                borderRadius: 6,
+                background: settingsOpen ? colors.accentLight : colors.bg,
+                color: settingsOpen ? colors.accent : colors.textSecondary,
+                cursor: 'pointer'
+              }}
+            >
+              <CogIcon />
+            </button>
+            {settingsOpen && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: 4,
+                padding: 8,
+                background: colors.bg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                zIndex: 100,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                minWidth: 160
+              }}>
+                <button
+                  onClick={() => editor.setTheme(t => t === 'light' ? 'dark' : 'light')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 12px',
+                    border: 'none',
+                    borderRadius: 6,
+                    background: 'transparent',
+                    color: colors.text,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    textAlign: 'left'
+                  }}
+                >
+                  <span style={{ display: 'flex' }}>
+                    {editor.theme === 'light' ? <MoonIcon /> : <SunIcon />}
+                  </span>
+                  {editor.theme === 'light' ? 'Dark mode' : 'Light mode'}
+                </button>
+                {editor.mode === 'split' && (
+                  <>
+                    <button
+                      onClick={() => editor.setSplitDirection(d => d === 'horizontal' ? 'vertical' : 'horizontal')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 12px',
+                        border: 'none',
+                        borderRadius: 6,
+                        background: 'transparent',
+                        color: colors.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        textAlign: 'left'
+                      }}
+                    >
+                      <span style={{ transform: isVertical ? 'rotate(90deg)' : 'none', display: 'flex' }}>
+                        <SwapIcon />
+                      </span>
+                      {isVertical ? 'Horizontal split' : 'Vertical split'}
+                    </button>
+                    <button
+                      onClick={() => editor.setPanelsSwapped(s => !s)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 12px',
+                        border: 'none',
+                        borderRadius: 6,
+                        background: 'transparent',
+                        color: colors.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        textAlign: 'left'
+                      }}
+                    >
+                      <span>⇄</span>
+                      Swap panels
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

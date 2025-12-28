@@ -44,7 +44,8 @@ export function useEditor({ defaultValue, demo } = {}) {
     strikethrough: false,
     code: false,
     image: false,
-    link: false
+    link: false,
+    center: false
   });
   const [hoveredLink, setHoveredLink] = useState(null);
   const [linkTooltipPosition, setLinkTooltipPosition] = useState(null);
@@ -192,12 +193,15 @@ export function useEditor({ defaultValue, demo } = {}) {
 
       // Check for actual <u> tag, not just link styling
       let hasUnderlineTag = false;
+      let hasCenterTag = false;
       if (sel && sel.rangeCount > 0) {
         let node = sel.getRangeAt(0).commonAncestorContainer;
         while (node && node !== previewRef.current) {
           if (node.nodeName === 'U') {
             hasUnderlineTag = true;
-            break;
+          }
+          if (node.nodeName === 'CENTER') {
+            hasCenterTag = true;
           }
           node = node.parentNode;
         }
@@ -210,7 +214,8 @@ export function useEditor({ defaultValue, demo } = {}) {
         strikethrough: document.queryCommandState('strikeThrough'),
         code: false,
         image: isImage,
-        link: isLink
+        link: isLink,
+        center: hasCenterTag
       });
     } else if (textareaRef.current) {
       const s = savedSelectionRef.current.start;
@@ -248,6 +253,16 @@ export function useEditor({ defaultValue, demo } = {}) {
         }
       }
 
+      // Check if cursor is within <center> tags
+      let isCenter = false;
+      const centerRegex = /<center>([\s\S]*?)<\/center>/gi;
+      while ((match = centerRegex.exec(searchText)) !== null) {
+        if (cursorInSearch >= match.index && cursorInSearch <= match.index + match[0].length) {
+          isCenter = true;
+          break;
+        }
+      }
+
       setActiveFormats({
         bold: (before2 === '**' && after2 === '**') || (txt.startsWith('**') && txt.endsWith('**')),
         italic: (before1 === '*' && after1 === '*' && before2 !== '**' && after2 !== '**') ||
@@ -256,7 +271,8 @@ export function useEditor({ defaultValue, demo } = {}) {
         strikethrough: (before2 === '~~' && after2 === '~~') || (txt.startsWith('~~') && txt.endsWith('~~')),
         code: (before1 === '`' && after1 === '`') || (txt.startsWith('`') && txt.endsWith('`')),
         image: isImage,
-        link: isLink
+        link: isLink,
+        center: isCenter
       });
     }
   }, [content]);
@@ -277,9 +293,31 @@ export function useEditor({ defaultValue, demo } = {}) {
         if (cmd) {
           document.execCommand(cmd, false, null);
         } else {
-          // Wrap selection with HTML tags
-          const selectedText = currentRangeRef.current.toString();
-          document.execCommand('insertHTML', false, `${pre}${selectedText}${suf}`);
+          // Wrap selection with HTML tags, preserving inner HTML
+          const range = currentRangeRef.current;
+          const fragment = range.cloneContents();
+          const tempDiv = document.createElement('div');
+          tempDiv.appendChild(fragment);
+          let selectedHtml = tempDiv.innerHTML;
+
+          // Check if selection is inside a link - if so, include the link wrapper
+          let node = range.commonAncestorContainer;
+          while (node && node !== previewRef.current) {
+            if (node.nodeName === 'A') {
+              // Clone the link element with its attributes, wrapping the selected content
+              const linkClone = node.cloneNode(false);
+              linkClone.innerHTML = selectedHtml;
+              selectedHtml = linkClone.outerHTML;
+              // Expand the range to include the entire link for deletion
+              range.selectNode(node);
+              sel.removeAllRanges();
+              sel.addRange(range);
+              break;
+            }
+            node = node.parentNode;
+          }
+
+          document.execCommand('insertHTML', false, `${pre}${selectedHtml}${suf}`);
         }
         const newSel = window.getSelection();
         if (newSel && newSel.rangeCount > 0) {
@@ -289,6 +327,8 @@ export function useEditor({ defaultValue, demo } = {}) {
           skipSyncRef.current = true;
           setContentRaw(htmlToMarkdown(previewRef.current));
         }
+        // Update active formats after applying formatting
+        detectFormats();
       }
       return;
     }
@@ -328,7 +368,7 @@ export function useEditor({ defaultValue, demo } = {}) {
 
     pendingSelectionRef.current = { start: newStart, end: newEnd };
     setContentRaw(newContent);
-  }, [content, mode]);
+  }, [content, mode, detectFormats]);
 
   const toggleBlock = useCallback((pre, tag) => {
     const ta = textareaRef.current;
