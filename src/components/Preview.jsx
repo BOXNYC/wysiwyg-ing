@@ -5,7 +5,7 @@ import { getPreviewStyles } from '../utils/styles';
 
 export function Viewer({ content, theme = 'light', style }) {
   const colors = getColors(theme);
-  const html = useMemo(() => parseMarkdown(content || ''), [content]);
+  const html = useMemo(() => parseMarkdown(content || '', colors), [content, colors]);
 
   return (
     <div style={{

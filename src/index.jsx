@@ -319,8 +319,9 @@ export default function WysiwygEditor({ defaultValue, demo } = {}) {
         onMouseEnter={editor.handleTooltipMouseEnter}
         onMouseLeave={editor.handleTooltipMouseLeave}
         onEdit={() => {
+          const link = editor.hoveredLink;
           editor.hideLinkTooltip();
-          editor.handleOpenLinkModal();
+          editor.editLinkFromTooltip(link);
         }}
       />
     </div>

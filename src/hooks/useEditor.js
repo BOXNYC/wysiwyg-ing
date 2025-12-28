@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { htmlToMarkdown, parseMarkdown } from '../utils/markdown';
+import { getColors } from '../utils/themes';
 
 const DEFAULT_CONTENT = `# Welcome to the Editor
 
@@ -133,9 +134,10 @@ export function useEditor({ defaultValue, demo } = {}) {
       return;
     }
     if (previewRef.current && document.activeElement !== previewRef.current) {
-      previewRef.current.innerHTML = parseMarkdown(content);
+      const colors = getColors(theme);
+      previewRef.current.innerHTML = parseMarkdown(content, colors);
     }
-  }, [content, mode]);
+  }, [content, mode, theme]);
 
   const syncToMarkdown = useCallback(() => {
     if (!previewRef.current) return;
@@ -610,6 +612,49 @@ export function useEditor({ defaultValue, demo } = {}) {
     setLinkModalOpen(true);
   }, [content]);
 
+  const editLinkFromTooltip = useCallback((linkElement) => {
+    if (!linkElement) return;
+
+    // Check if it's an image link
+    const img = linkElement.querySelector('img');
+    if (img) {
+      const imgSrc = img.getAttribute('src') || '';
+      setLinkData({
+        url: linkElement.getAttribute('href') || '',
+        text: '',
+        title: linkElement.getAttribute('title') || '',
+        target: linkElement.getAttribute('target') || '',
+        imageData: {
+          src: imgSrc,
+          alt: img.getAttribute('alt') || '',
+          type: 'preview',
+          imgSrc: imgSrc,
+          existingUrl: linkElement.getAttribute('href') || '',
+          existingTarget: linkElement.getAttribute('target') || ''
+        },
+        existingLink: null
+      });
+    } else {
+      // Text link
+      setLinkData({
+        url: linkElement.getAttribute('href') || '',
+        text: linkElement.textContent || '',
+        title: linkElement.getAttribute('title') || '',
+        target: linkElement.getAttribute('target') || '',
+        imageData: null,
+        existingLink: {
+          type: 'preview',
+          url: linkElement.getAttribute('href') || '',
+          text: linkElement.textContent || '',
+          title: linkElement.getAttribute('title') || '',
+          target: linkElement.getAttribute('target') || '',
+          element: linkElement
+        }
+      });
+    }
+    setLinkModalOpen(true);
+  }, []);
+
   const handleInsertLink = useCallback((url, text, title, target) => {
     const imgData = linkData.imageData;
     const existingLink = linkData.existingLink;
@@ -992,6 +1037,7 @@ export function useEditor({ defaultValue, demo } = {}) {
     toggleBlock,
     insertText,
     handleOpenLinkModal,
+    editLinkFromTooltip,
     handleInsertLink,
     handleOpenImageModal,
     handleInsertImage,

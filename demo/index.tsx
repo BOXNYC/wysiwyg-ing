@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import WysiwygEditor from '../src/index.jsx';
 import { Viewer } from '../src/components';
 
-const DEMO_CONTENT = `# This is a test
+const DEMO_CONTENT = `# What You See Is What You're Getting
 
 [![](https://upload.wikimedia.org/wikipedia/commons/4/4c/Chihuahua1_bvdb.jpg)](https://en.wikipedia.org/wiki/Chihuahua_(dog_breed))
 
@@ -14,7 +14,7 @@ function App() {
 
   return (
     <>
-      <WysiwygEditor />
+      <WysiwygEditor defaultValue={DEMO_CONTENT} />
 
       <div style={{ marginTop: 40 }}>
         <div style={{

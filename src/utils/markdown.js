@@ -6,14 +6,15 @@ const NBSP = /\u00A0/g;
 /**
  * Parse markdown string to HTML
  */
-export function parseMarkdown(md) {
+export function parseMarkdown(md, colors) {
+  const headingStyle = colors ? ` style="color: ${colors.textHeading}"` : '';
   // Remove zero-width characters and convert nbsp to regular space
   let html = md
     .replace(ZERO_WIDTH_CHARS, '')
     .replace(NBSP, ' ')
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^### (.+)$/gm, `<h3${headingStyle}>$1</h3>`)
+    .replace(/^## (.+)$/gm, `<h2${headingStyle}>$1</h2>`)
+    .replace(/^# (.+)$/gm, `<h1${headingStyle}>$1</h1>`)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/~~(.+?)~~/g, '<s>$1</s>')

@@ -1,8 +1,8 @@
 export function getPreviewStyles(colors) {
   return `
-    .preview-content h1 { font-size: 2em; font-weight: 700; margin: 0 0 0.5em 0; color: ${colors.text}; border-bottom: 2px solid ${colors.border}; padding-bottom: 0.3em; }
-    .preview-content h2 { font-size: 1.5em; font-weight: 600; margin: 1em 0 0.5em 0; color: ${colors.text}; }
-    .preview-content h3 { font-size: 1.25em; font-weight: 600; margin: 1em 0 0.5em 0; color: ${colors.text}; }
+    .preview-content h1 { font-size: 2em; font-weight: 700; margin: 0 0 0.5em 0; border-bottom: 2px solid ${colors.border}; padding-bottom: 0.3em; }
+    .preview-content h2 { font-size: 1.5em; font-weight: 600; margin: 1em 0 0.5em 0; }
+    .preview-content h3 { font-size: 1.25em; font-weight: 600; margin: 1em 0 0.5em 0; }
     .preview-content p { margin: 0 0 1em 0; }
     .preview-content a { color: ${colors.accent}; text-decoration: none; }
     .preview-content a:hover { text-decoration: underline; }
